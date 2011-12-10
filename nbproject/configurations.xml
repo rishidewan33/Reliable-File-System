@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configurationDescriptor version="79">
+  <logicalFolder name="root" displayName="root" projectFiles="true" kind="ROOT">
+    <df name="labF" root=".">
+      <in>ADisk.cc</in>
+      <in>ADisk.h</in>
+      <in>Disk.cc</in>
+      <in>Disk.h</in>
+      <in>FS.h</in>
+      <in>FlatFS.h</in>
+      <in>PTree.h</in>
+      <in>common.h</in>
+      <in>dirent.h</in>
+      <in>sthread.cc</in>
+      <in>sthread.h</in>
+      <in>testpart0.cc</in>
+      <in>testpart1.cc</in>
+    </df>
+    <logicalFolder name="ExternalFiles"
+                   displayName="Important Files"
+                   projectFiles="false"
+                   kind="IMPORTANT_FILES_FOLDER">
+      <itemPath>Makefile</itemPath>
+    </logicalFolder>
+  </logicalFolder>
+  <sourceFolderFilter>^(nbproject)$</sourceFolderFilter>
+  <sourceRootList>
+    <Elem>.</Elem>
+  </sourceRootList>
+  <projectmakefile>Makefile</projectmakefile>
+  <confs>
+    <conf name="Default" type="0">
+      <toolsSet>
+        <remote-sources-mode>LOCAL_SOURCES</remote-sources-mode>
+        <compilerSet>default</compilerSet>
+      </toolsSet>
+      <makefileType>
+        <makeTool>
+          <buildCommandWorkingDir>.</buildCommandWorkingDir>
+          <buildCommand>${MAKE} -f Makefile</buildCommand>
+          <cleanCommand>${MAKE} -f Makefile clean</cleanCommand>
+          <executablePath>testpart1</executablePath>
+          <ccTool>
+            <preprocessorList>
+              <Elem>_POSIX_THREAD_SEMANTICS</Elem>
+            </preprocessorList>
+          </ccTool>
+        </makeTool>
+      </makefileType>
+      <item path="FS.h" ex="true" tool="3" flavor="0">
+      </item>
+      <item path="FlatFS.h" ex="true" tool="3" flavor="0">
+      </item>
+      <item path="PTree.h" ex="true" tool="3" flavor="0">
+      </item>
+      <item path="dirent.h" ex="true" tool="3" flavor="0">
+      </item>
+    </conf>
+  </confs>
+</configurationDescriptor>

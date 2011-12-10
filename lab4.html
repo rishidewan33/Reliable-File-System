@@ -1,0 +1,777 @@
+<!doctype html public "-//w3c//dtd html 4.0 transitional//en">
+<html>
+<head>
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+   <meta name="GENERATOR" content="Microsoft FrontPage 5.0">
+   <title>CS 372 Spring 2006: Project 4</title>
+</head>
+<body bgcolor="#FFFFFF">
+
+<center>
+<h2>
+CS372 Project 4 - A Reliable File System</h2></center>
+
+<center><b>Due:</b>&nbsp; <blink><b><font color="#FF0000" size="+2">4:59:59 PM</font></b></blink> May 5 2006</center>
+
+<HR>
+<h3>
+Assignment Goals</h3>
+
+<ul>
+<li>
+To learn about key file system concepts: logging, metadata, and directories</li>
+
+</ul>
+
+<h3>
+Overview of Project</h3>
+
+<blockquote>You will construct a user-level library that presents the
+  abstraction of a reliable file system called RFS. In order to manage the complexity, you
+  will implement this system in 4 phases, each of which presents a successively
+  higher-level abstraction. You will be given the abstraction of a raw disk
+  interface. In project 3, you constructed an atomic disk. On top of this you will build
+  <ol>
+    <li>A reliable dynamically-growing multi-level tree in which a collection of
+      data blocks can be stored</li>
+    <li>A reliable flat file system</li>
+    <li>A reliable directory-based file system (RFS)</li>
+  </ol>
+</blockquote>
+
+<h3>
+The Assignment</h3>
+
+<blockquote>Make a copy of your code from project 3. You will begin with the
+  Disk abstraction we provided and ADisk abstraction you constructed.
+</blockquote>
+
+<table BORDER=0 CELLSPACING=2 CELLPADDING=3 WIDTH="100%" hspace="4" >
+<tr BGCOLOR="#E0E0E8">
+<td WIDTH="100%"><b><nobr><font face="tahoma,arial,helvetica">Part 0: Understand
+  the supplied low-level file system</font></nobr></b></td>
+</tr>
+</table>
+
+<blockquote>
+  <p>Completed in project 3.</p>
+</blockquote>
+
+<table BORDER=0 CELLSPACING=2 CELLPADDING=3 WIDTH="100%" hspace="4" >
+<tr BGCOLOR="#E0E0E8">
+<td WIDTH="100%"><b><nobr><font face="tahoma,arial,helvetica">Part 1: Build an
+  atomic disk</font></nobr></b></td>
+</tr>
+</table>
+
+<blockquote>
+  <p>Completed in project 3.</p>
+</blockquote>
+
+<table BORDER=0 CELLSPACING=2 CELLPADDING=3 WIDTH="100%" hspace="4" >
+<tr BGCOLOR="#E0E0E8">
+<td WIDTH="100%"><b><nobr><font face="tahoma,arial,helvetica">Part 2: Build a
+  dynamic multi-level persistent tree</font></nobr></b></td>
+</tr>
+</table>
+
+<blockquote>In this part of the project, you will create a persistent on-disk
+  tree abstraction using your atomic disk abstraction. The disk will store up to  MAX_TREES trees, each of
+  which is identified by a TNum. The leaves of each tree are data blocks, and
+  the trees grow as you add more blocks. You will make use of the ADisk to
+  ensure that you can issue a series of updates to a tree or trees and have them
+  occur atomically. For example, you could {update the free list to indicate
+  that two blocks have been consumed, add a data block to one tree, add a data
+  block to another tree causing that tree to grow the number of internal nodes
+  it has} as a single atomic operation.
+  <p><b>Interface</b>: Your PTree (persistent tree) object should implement the
+  following public methods:</p>
+  <b>PTree::PTree(ADisk adisk, int doFormat)</b>: This function is the
+      constructor. If doFormat == 0, data stored in previous sessions must
+      remain stored. If doFormat == 1, the system should initialize the
+      underlying disk to empty.
+  <p><b>TransID PTree::beginTrans():</b> This function begins a new transaction and returns an identifying transaction ID.
+  <p><b>int PTree::commitTrans(TransID xid):</b> This function commits the specified transaction. Normally it returns 0. On error, it returns -1 if
+     <ol type="1">
+     <li  class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l11 level1 lfo9; tab-stops: list .5in">&nbsp;<i>xid</i> is not an active transaction</li>
+      </ol>
+  <p><b>int PTree::abortTrans(TransID xid):</b> This function aborts the specified transaction. Normally it returns 0. On error, it returns -1 if
+     <ol type="1">
+     <li  class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l11 level1 lfo9; tab-stops: list .5in">&nbsp;<i>xid</i> is not an active transaction</li>
+      </ol>
+  <p><b>int PTree::createTree(TransID xid): </b>This function creates a new
+      tree and returns the TNum number (a unique identifier for the tree) or
+      returns -1 on error. It fails if
+    <ol type="1">
+      <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l11 level1 lfo9; tab-stops: list .5in">&nbsp;<i>xid</i>
+        is not an active transaction</li>
+      <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l11 level1 lfo9; tab-stops: list .5in">There
+        are not sufficient resources to complete the operation.</li>
+    </ol>
+      <p class="MsoNormal"><b>int PTree::deleteTree(TransID xid, int tnum): </b>This
+      function removes the tree specified by the tree&nbsp; number <i>tnum</i>.
+      The tree is deleted and the corresponding resources are reclaimed. The
+      function returns 0 upon success. It fails and returns -1 if:
+    <ol type="1">
+      <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l3 level1 lfo12; tab-stops: list .5in"><i>xid</i>
+        is not an active transaction&nbsp;</li>
+      <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l3 level1 lfo12; tab-stops: list .5in">&nbsp;<i>tnum</i>
+        does not correspond to an exisiting tree</li>
+    </ol>
+      <p class="MsoNormal"><b>int PTree::getMaxDataBlockId(TransID xid, int tnum)</b>:
+      This function returns the blockID of the highest-numbered block of data
+      stored in a tree. Note that blocks in a tree are numbered
+      0..getMaxDataBlockId()-1. The function fails and returns -1 if:
+  </blockquote>
+
+<blockquote>
+    <ol>
+      <li><i>xid </i>does not correspond to an active transaction</li>
+      <li><i>tnum </i>does not correspond to an existing tree.</li>
+    </ol>
+</blockquote>
+
+<blockquote>
+      <p class="MsoNormal"><b>int PTree::readData(TransID xid, int tnum, int
+      blockId, char *buffer): </b>This function reads DISK_SECTOR_SIZE bytes
+      from the blockId'th block of data in the tree specified by <i>tnum</i>
+      into the buffer specified by <i>buffer</i>.&nbsp; If the specified block
+      does not exist in the tree, the function should fill *buffer with '\0'
+      values. Upon success, the function returns 0 on success or returns -1 if:
+    <ol type="1">
+      <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l13 level1 lfo15; tab-stops: list .5in"><i>xid
+        </i>does not correspond to an active transaction
+      <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l13 level1 lfo15; tab-stops: list .5in"><i>tnum
+        </i>does not correspond to an existing tree.</li>
+    </ol>
+      <p class="MsoNormal"><b>int PTree::writeData(TransID xid, int tnum, int
+      blockId, char * buffer): </b>This function writes DISK_SECTOR_SIZE bytes
+      from the buffer specified by <i>buffer</i> into the blockId'th block of
+      data in the tree specified by tnum. If the specified block does not exist
+      in the tree, the function should grow the tree to include the new block.
+      Notice that this growth may require updating multiple data structures --
+      the free list, the pointer to the tree root, internal tree nodes, and the
+      data block itself -- and all of these updates must be done atomically
+      within the transaction. The function returns 0 on success or returns -1 on
+      failure if:</p>
+    <ol type="1">
+      <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l13 level1 lfo15; tab-stops: list .5in"><i>xid
+        </i>does not correspond to an active transaction
+      <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l13 level1 lfo15; tab-stops: list .5in"><i>tnum
+        </i>does not correspond to an existing tree.</li>
+      <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l13 level1 lfo15; tab-stops: list .5in">Writing
+        the specified block would result in a <i>hole</i> in the tree -- that
+        is, blockId-1 has not yet been written.</li>
+      <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l7 level1 lfo18; tab-stops: list .5in">The
+        tree should be grown, but there are no resources left to perform the
+        extension (for example, there are not sufficient free disk sectors).</li>
+    </ol>
+
+      <p><b>int PTree::readTreeMetadata(TransID xid, int tnum, char
+      *buffer</b>: This function reads TREE_METADATA_SIZE bytes of
+      per-tree metadata for tree <I>tnum</I> and stores this data in
+      the buffer beginning at <I>buffer</I>. This per-tree metadata
+      is an uninterpreted array of bytes that higher-level code may
+      use to store state associated with a given tree. Upon success,
+      the function returns 0 on success or returns -1 if:</p> 
+
+    <ol type="1">
+      <li class="MsoNormal" style="mso-margin-top-alt: auto;
+      mso-margin-bottom-alt: auto; mso-list: l13 level1 lfo15;
+      tab-stops: list .5in"><i>xid</i>does not correspond to an active transaction
+
+      <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l13 level1 lfo15; tab-stops: list .5in"><i>tnum</i>does not correspond to an existing tree.</li>
+    </ol>
+
+      <p><b>int PTree::writeTreeMetadata(TransID xid, int tnum, char
+      *buffer</b>: This function writes TREE_METADATA_SIZE bytes of
+      per-tree metadata for tree <I>tnum</I> from the buffer beginning
+      at <I>buffer</I>.Upon success,
+      the function returns 0 on success or returns -1 if:</p> 
+
+    <ol type="1">
+      <li class="MsoNormal" style="mso-margin-top-alt: auto;
+      mso-margin-bottom-alt: auto; mso-list: l13 level1 lfo15;
+      tab-stops: list .5in"><i>xid</i>does not correspond to an active transaction
+
+      <li class="MsoNormal" style="mso-margin-top-alt: auto;
+      mso-margin-bottom-alt: auto; mso-list: l13 level1 lfo15;
+      tab-stops: list .5in"><i>tnum</i>does not correspond to an
+      existing tree.</li>
+
+      <li class="MsoNormal" style="mso-margin-top-alt: auto;
+      mso-margin-bottom-alt: auto; mso-list: l11 level1 lfo9;
+      tab-stops: list .5in">There are not sufficient resources to
+      complete the operation.</li>
+
+    </ol>
+
+      <b>int PTree::getParam(TParams param): </b>This function allows
+      applications to get parameters of the persistent tree system. The parameter is one of
+      PTREE_FREE_SPACE (to ask how much free space the system
+      currently has),
+      PTREE_MAX_TREES (to ask what is the maximum number of trees the
+      system can support),
+      and PTREE_FREE_TREES (to ask how many free tree IDs the system currently
+      has). It returns an integer answer to the question or -1 if the parameter
+      does not match one of these values.
+  <P>We will provide the code <A HREF="PTree.h">PTree.h</A>.</P>
+
+
+  <p><b>Requirements on implementation internals</b>:&nbsp;</p>
+  <ul>
+    <li>You are <b>required</b> to use the following basic on-disk data
+      structures for the trees. Each tree has a TNode, zero or more InternalNodes,
+      and zero or more data sectors.&nbsp;</li>
+
+    <li>You should store an array of  MAX_TREES TNodes across a fixed set
+      of disk sectors. Thus, given a tree number tNum, you should be able to
+      locate the place on disk where the corresponding TNode structure is
+      stored. Each TNode structure should contain one disk sector ID, which is
+      where the tree's root InternalNode is stored (or which is some NULL value
+      if the tree has not been created.) A TNode structure should also
+      hold TREE_METADATA_SIZE bytes of uninterpreted per-tree state. A
+      TNode should be smaller than a 
+      sector, so you <b>must</b> store multiple TNodes in the same disk
+      sector. You <B>may</B> store other information in a TNode.</li> 
+
+    <li>Each InternalNode is stored on disk in
+      DISK_SECTOR_SIZE bytes. Each InternalNode contains an array of pointers
+      (that is, disk sector addresses). These pointers can point to data sectors
+      (the leaves of the tree) or they can point to sectors containing other InternalNodes. All leaves are at the same level of the tree, and if a tree
+      fills, it is grown by making a InternalNode the root of the tree and
+      installing the old root as the first child of the new root. Subsequent
+      InternalNodes should only be created and attached to the new root as
+      needed (i.e., all InternalNodes must have at least one descendant that is
+      a leaf.) Your readData and writeData must read into memory the
+      InternalNodes between the root and the leaf in question and no others. It
+      is not acceptable, for example, to always read an entire tree into memory
+      before operating on any part of it.&nbsp; In addition to the array of pointers, you <b>may</b> store other information in an InternalNode.</li>
+    <li>In addition, you are <b>required</b> to implement your free sector list
+      as an on-disk bitmap.</li>
+
+      <LI>You may not "preload" your forest of trees into memory. Nor
+      may you store the full array of TNodes in memory.  Doing so is
+      feasible for our 8MB file system, but would not be reasonable if
+      our disk were large. Instead, you should just read pieces of
+      trees as you need them for the current transactions. You are not
+      required to implement a cache of recently read
+      sectors---simplicity trumps performance for this project. You
+      may store a copy of the free sector bitmap in memory if you
+      like, but this is not a requirement.</LI>
+
+  </ul>
+  <p><b>Simplifying assumption</b>:
+  <UL>
+
+  <LI>Although the ADisk you built supports multiple concurrent
+  transactions, to simplify the design you are not required to support
+  mulitple concurrent transactions at the PTree layer or above.  You
+  must, however, still be thread safe by ensuring that multiple
+  threads from the same transaction are coordinated. In particular,
+  you may (1) use a single lock to coordinate access through all
+  public methods, (2) have beginTrans() block if there is already
+  an outstanding transaction, and (3) have abortTransaction() and
+  commitTransaction() signal a thread waiting in beginTransaction() (if
+  any).</LI>
+
+  </UL>
+  </p>
+
+  <p><b>Hints</b>: You are not required to follow this advice, but I think it
+  might help. Feel free to ignore it if you have a better way.&nbsp;</p>
+  <ul>
+    <li>You should select four ranges of blocks on the disk for four key data
+      structures: file system global parameters (e.g., the number of free
+      sectors or tree roots), the array of tree root pointers, the free sector
+      list, and the remaining sectors.&nbsp;</li>
+    <li>In your TNode implementation, you may find it convenient to store
+      additional information about the tree in the TNode. You are welcome to do
+      so.</li>
+    <li>In your InternalNode implementation, you may find it convenient to store
+      additional information about subtrees in the InternalNode. For example, you might want to store with each child pointer the
+      blockId range of the subtree; notice that if you grow the tree as
+      specified above, these blockId ranges do not need to be updated when a
+      tree grows.</li>
+    <li> In your InternalNode implementation, you
+      may find it convenient to (1) have an InternalNode constructor that takes
+      a sector number and TransID as an argument and constructs an InternalNode
+      object from data stored on disk, (2) have an InternalNode::writeSelf() method
+      that takes a TransID and maybe a disk sector number as arguments and that stores data on disk that may
+      later be used to construct an InternalNode object</li>
+    <li>You might also find it convenient to follow a similar structure for your
+      constructor and writeSelf() methods on the array of TNodes and/or chunks of the
+      free sector list.&nbsp;</li>
+    <li>Begin this part of the project by writing down your main data
+      structures, and then writing pseudo-code for each of the above functions
+      in terms of methods on these data structures.</li>
+    <li>Test as you go. Build a subset of the above functionality and test it
+      thoroughly, rather than trying to test all of these functions at once. Test not only the external interfaces, but also invariants you know about the internal structure. For example, you could write a test that walks the
+      InternalNodes of a specified tree to test some invariant that you know
+      must hold. For example, you could write a test that walks all trees to make sure that the blocks allocated to the trees are all marked as used on the free map.</li>
+  </ul>
+  </blockquote>
+
+<table BORDER=0 CELLSPACING=2 CELLPADDING=3 WIDTH="100%" hspace="4" >
+<tr BGCOLOR="#E0E0E8">
+<td WIDTH="100%"><b><nobr><font face="tahoma,arial,helvetica">Part 3: Flat File
+  System</font></nobr></b></td>
+</tr>
+</table>
+
+<blockquote>
+  <p>In this part of the project, you will build a &quot;flat file system&quot;
+  that implements files but not directories. A flat file system allows you to
+  read and write files that are named by inumbers rather than path names, which
+  would not be convenient for end users, but which will form the basis for the
+  rest of the system. You will use the persistent trees created in part 2. Each
+  tree will store a file.</p>
+  <p>You should implement the following interface:</p>
+  <p><b>FlatFS::FlatFS(PTree perstTrees, int doFormat)</b>: This function is the
+      constructor. If doFormat == 0, data stored in previous sessions must
+      remain stored. If doFormat == 1, the system should initialize the
+      underlying disk to empty.
+
+     <ol type="1">
+     <li  class="MsoNormal" style="mso-margin-top-alt: auto;
+     mso-margin-bottom-alt: auto; mso-list: l11 level1 lfo9;
+     tab-stops: list .5in">&nbsp;<i>doFormat</i> is 1 and the
+     <i>perstTree</i> is not a newly-formatted, empty PTree system</li>
+      </ol>
+
+  <p><b>TransID FlatFS::beginTrans()</b> This function begins a new transaction and returns an identifying transaction ID.
+  <p><b>int FlatFS::commitTrans(TransID xid):</b> This function commits the specified transaction. Normally it returns 0. On error, it returns -1 if
+     <ol type="1">
+     <li  class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l11 level1 lfo9; tab-stops: list .5in">&nbsp;<i>xid</i> is not an active transaction</li>
+      </ol>
+  <p><b>int FlatFS::abortTrans(TransID xid):</b> This function aborts the specified transaction. Normally it returns 0. On error, it returns -1 if
+     <ol type="1">
+     <li  class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l11 level1 lfo9; tab-stops: list .5in">&nbsp;<i>xid</i> is not an active transaction</li>
+      </ol>
+  <p><b>int FlatFS::ICreateFile(TransID xid):&nbsp;</b>This function creates a new file and returns the inode number (a unique
+  identifier for the file) or return -1 on error. It fails if</p>
+  <ol type="1">
+    <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l11 level1 lfo9; tab-stops: list .5in">There are not sufficient resources to complete the operation.</li>
+    <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l11 level1 lfo9; tab-stops: list .5in"><i>xid</i>
+      is not a valid, active transaction ID</li>
+  </ol>
+  <p class="MsoNormal"><b>int FlatFS::IDeleteFile(TransID xid, int inumber):</b>
+  This function removes the file specified by the inode number <i>inumber</i>.
+  The file is deleted and the corresponding resources are reclaimed. The
+  function returns 0 upon success. It fails and returns -1 if:</p>
+  <ol type="1">
+    <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l3 level1 lfo12; tab-stops: list .5in">
+      <i>inumber</i> does not correspond to an existing file</li>
+    <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l3 level1 lfo12; tab-stops: list .5in"><i>xid</i>
+      is not a valid, active transaction ID</li>
+  </ol>
+  <p class="MsoNormal"><b>int FlatFS::IRead(TransID xid, int inumber, int
+  count, int offset, char *buffer): </b>
+  This function reads <i>count</i> bytes from
+  the file specified by <i>inumber</i>&nbsp;
+  into the buffer specified by <i>buffer</i>.
+  The parameter <i>offset</i> specifies the
+  starting location within the file where the data should be read. Upon success,
+  the function returns the number of bytes read (this number can be less than <i>count</i>
+  if no more bytes are available from the position specified by <i>offset</i>
+  until the end of the file). The operation fails and returns -1 if:</p>
+  <ol type="1">
+    <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l13 level1 lfo15; tab-stops: list .5in"><i>inumber
+      </i>does not correspond to an existing file.
+    <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l13 level1 lfo15; tab-stops: list .5in"><i>offset
+      </i>specifies a location that is beyond the end of the file.</li>
+    <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l13 level1 lfo15; tab-stops: list .5in"><i>xid</i>
+      is not a valid, active transaction ID</li>
+  </ol>
+  <p class="MsoNormal"><b>int FlatFS::IWrite(TransID xid, int inumber, int
+  count, int offset, char * buffer): </b>
+  This function writes <i>count</i> bytes from
+  the buffer specified by <i>buffer</i> into
+  the file specified by<i> inumber</i>. The
+  parameter <i>offset</i> specifies the
+  starting location within the file where the data should be written. Attempting
+  to write beyond the end of file should extend the size of the file to
+  accommodate the new data, but the write operation should not result in a hole
+  between the old end of file and the beginning of the newly written data. Upon
+  success, the function returns the number of bytes written. The operation fails
+  and returns -1 if:</p>
+  <ol type="1">
+    <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l7 level1 lfo18; tab-stops: list .5in"><i>inumber</i>
+      does not correspond to an existing file.
+    <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l7 level1 lfo18; tab-stops: list .5in"><i>offset
+      </i>specifies a location that would result in a hole in the file.
+    <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l7 level1 lfo18; tab-stops: list .5in">The
+      file should be extended, but there are no resources left to perform the
+      extension (for example, there are not sufficient free disk sectors).</li>
+    <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l7 level1 lfo18; tab-stops: list .5in"><i>xid</i>
+      is not a valid, active transaction ID</li>
+  </ol>
+  <p class="MsoNormal">
+  &nbsp;<b>int FlatFS::IGetParam(FSParams param): </b>This function allows applications to get parameters of the file system. The
+  parameter is one of MAX_FILE (to ask the maximum number of files the formatted
+  file system supports), FREE_SPACE (to ask how much free space the file system currently
+  has), and FREE_FILES (to ask how many free inodes the system currently has).
+  It returns an integer answer to the question or -1 if the parameter does not
+  match one of these values.</p>
+  <P>We will provide the code <A HREF="FlatFS.h">FlatFS.h</A>.</P>
+  <p><b>Hints</b>: This layer adds very little to the persistent tree layer.
+  Primarily, instead of reading and writing sectors, now you read and write
+  ranges of bytes. So, IRead and IWrite will need to translate requests for
+  ranges of bytes into a series of requests for sectors. Also, notice that if
+  offset &lt; file length and offset + count &gt;= file length, the IRead
+  function should only read to the end of the file and not beyond it (returning
+  a value smaller than count). So, you will need to
+  store the file length in bytes with each tree.</p>
+</blockquote>
+
+<table BORDER=0 CELLSPACING=2 CELLPADDING=3 WIDTH="100%" hspace="4" >
+<tr BGCOLOR="#E0E0E8">
+<td WIDTH="100%"><b><nobr><font face="tahoma,arial,helvetica">Part 4:
+  Hierarchical File System</font></nobr></b></td>
+</tr>
+</table>
+
+<blockquote>
+
+<p>File systems would be less useful if you needed to remember the inumber of each
+file you create. File systems therefore use a higher-level API with
+hierarchical file names to make it easy to organize and remember where data are
+stored.</p>
+<p>A directory is treated in RFS like any other file, except that it
+can not be written to directly by user programs. The directory file consists
+of several entries, each describing a file or a directory. Each directory must
+contain at least two entries. The first one refers to the parent directory, and
+has the name &quot;..&quot;, like in UNIX. The root directory's parent is the
+root directory itself, which is the only exception. The second mandatory entry
+has the name &quot;.&quot; which points to the directory itself.</p>
+<p>Updates to the directory structure occur only as a result of a file deletion
+or creation. A directory entry contains a flag showing whether the entry is used
+or not. You may want to include other status information in this flag according
+to your design. The flag is followed by the index of the inode of the
+file or directory corresponding to that entry. The last field in the entry is
+the file or directory name, which is a fixed-length string.
+Note that in practice, we would not want to use fixed-size arrays to store names as they
+would cause
+unacceptable inefficiency in disk access speed and space utilization, but we
+allow this simplification for the project.</p>
+  <p>A template of a <A HREF="dirent.h">directory entry</A> might be as follows:<br>
+<span style="COLOR: green">&nbsp;&nbsp;&nbsp;&nbsp; </span>struct direct<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+unsigned flags;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+unsigned inumber;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; char&nbsp;&nbsp;&nbsp;&nbsp;
+  name[FS_MAX_NAME]; // An array of characters<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; }<br>
+&nbsp;Note that this is an internal detail of your file system. You are welcome
+to change it.</p>
+<p>When you format the disk, you will need to create the root directory, whose
+inode should always be at a known location. For example, in UNIX, the root
+directory is typically stored as inode 0.</p>
+<p>User processes access RFS through a number of library functions. These
+functions are part of a library that is linked to every user program. By
+convention, each of these functions returns a value of -1 upon failure unless
+otherwise stated. A file name used in any of these functions is a string of
+characters terminated by a null character. No component of the name between two
+'/' characters or after the last '/' character can exceed FS_MAX_NAME characters
+in length.</p>
+<p>Although file names are convenient for users, requiring string manipulation
+on each system call would increase the overhead of file access. Thus, the API
+allows users to <i>open</i> files using their names and then to read and write
+open files using <i>file descriptors. </i>A file descriptor is an integer
+between 0 and FS_MAX_FD that you will use as an index to an open-file-descriptor
+table that you will maintain. User programs use file descriptors to identify
+files in file system calls instead of repeatedly using file or directory names.&nbsp;</p>
+<p>Note that each operation (other than format) must execute atomically: either
+the entire operation completes or the file system is left in the state it was in
+before the request issued. Notice that unlike the previous interfaces, these
+interfaces do not take a transaction ID -- each of these library calls
+internally creates and commits a transaction. You should begin/end transactions within your code for these calls. This arrangement is more
+convenient for the user, but it has the disadvantage that a user cannot cause
+several of these calls to be executed atomically.</p>
+<p>
+A description of each file system call follows:</p>
+<p><b>FS::FS(FlatFS *flatFS, int doFormat):</b> This function is the
+      constructor. If doFormat == 0, data stored in previous sessions must
+      remain stored. If doFormat == 1, the system should initialize the
+      underlying file system to empty.
+
+     <ol type="1">
+     <li  class="MsoNormal" style="mso-margin-top-alt: auto;
+     mso-margin-bottom-alt: auto; mso-list: l11 level1 lfo9;
+     tab-stops: list .5in">&nbsp;<i>doFormat</i> is 1 and the
+     <i>flatFS</i> is not a newly-formatted, empty flat file system</li>
+      </ol>
+
+<p><b>int FS::open(char * name): </b>
+This function performs a lookup on the file or directory whose name is specified
+by <i>name</i>. The character string specified
+by <i>name</i> must start with &quot;/&quot;
+making <i>name</i> a full pathname that starts
+from the root of the file system. The call returns a file descriptor that can be
+used later to refer to the file or directory specified by the search path. The
+function fails if <i>name</i> does not specify
+an existing file, if no file descriptors are free, or if it corresponds to a
+directory. In these cases the function returns <i>-1</i>.</p>
+<p><b>int FS::close(int fd): </b>
+This function closes the open file indicated by the file descriptor fd. The call
+returns 0 on success or -1 on error (e.g., if fd does not correspond to an open
+file.) Subsequent access to files through the fd descriptor must return an
+error, until the fd is reused again in an open call. Also, any resources used to
+support the file descriptor should be reclaimed at this point.</p>
+<p><b>int FS::createFile(char * filename): </b>
+This function atomically creates a new file with the name <i>filename.
+Filename </i>is a full pathname (starting with &quot;/&quot;).&nbsp; The
+function opens the specified file and returns a file descriptor to the open file
+on success. It fails and returns -1 if:</p>
+<ol type="1">
+  <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l6 level1 lfo24; tab-stops: list .5in">The entry specified by <i>filename</i>
+    already exists as a file or a directory.
+  <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l6 level1 lfo24; tab-stops: list .5in"> The parent directory embedded in <i>filename</i> does not exist
+  <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l6 level1 lfo24; tab-stops: list .5in">There
+    are not sufficient resources to complete the operation.
+  <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l6 level1 lfo24; tab-stops: list .5in"><i>filename</i>
+    contains a component that is longer than FS_MAX_NAME characters</li>
+</ol>
+<p class="MsoNormal"><b>int FS::createDir(char * dirname): </b>
+This function atomically creates a directory entry with the name <i>dirname</i>.
+As before, the name is interpreted as a full pathname.&nbsp; The function
+returns 0 on success. It fails and returns -1 if:</p>
+<ol type="1">
+  <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l12 level1 lfo27; tab-stops: list .5in"><i>dirname
+    </i>already exists as a file or a directory.
+  <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l6 level1 lfo24; tab-stops: list .5in"> The parent directory embedded in <i>dirname</i> does not exist
+  <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l12 level1 lfo27; tab-stops: list .5in">There
+    are not sufficient resources to complete the operation (for example, you may
+    have run out of inodes).
+  <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l12 level1 lfo27; tab-stops: list .5in"><i>dirname</i>
+    contains a component that is longer than FS_MAX_NAME characters.</li>
+</ol>
+<p class="MsoNormal"><b>int FS::unlink(char *name): </b>
+This function atomically removes the entry specified by the <i>name.</i>
+The name is interpreted as usual. If the name corresponds to a file <i>and </i>the file is not
+currently open, it is
+deleted and the corresponding resources are reclaimed. If name corresponds to a directory, it is deleted only if it is
+an empty directory. The function returns 0 upon success. It fails and returns -1
+if:</p>
+<ol type="1">
+  <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l4 level1 lfo30; tab-stops: list .5in"><i>name
+    </i>does not correspond to an existing entry.
+  <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l4 level1 lfo30; tab-stops: list .5in"><i>name
+    </i>corresponds to a non-empty directory.
+  <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l4 level1 lfo30; tab-stops: list .5in"><i>name
+    </i>corresponds to a file that is currently open.</li>
+  <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l4 level1 lfo30; tab-stops: list .5in"><i>name</i>
+    contains a component that
+    is longer than FS_MAX_NAME characters.</li>
+</ol>
+<p><b>int FS::rename(char *name1, char *name2)</b>: This function atomically
+changes the name of an existing file <i>name1</i> into a new file <i>name2. </i> The function
+returns 0 on success. It fails and returns -1 if:</p>
+<ol type="1">
+  <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l6 level1 lfo24; tab-stops: list .5in">The
+    entry specified by <i>name1</i> does not correspond to an existing entry
+  <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l6 level1 lfo24; tab-stops: list .5in">The
+    entry specified by <i>name1</i>&nbsp; is a directory
+  <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l6 level1 lfo24; tab-stops: list .5in">The entry specified by
+    <i>name2</i> already exists as a file or a directory.
+  <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l6 level1 lfo24; tab-stops: list .5in">The
+    parent directory of the file name in <i>name2</i> does not exist
+  <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l6 level1 lfo24; tab-stops: list .5in">There
+    are not sufficient resources to complete the operation.
+  <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l6 level1 lfo24; tab-stops: list .5in"><i>name1
+    </i>or<i> name2</i> contains a component that is longer than FS_MAX_NAME
+    characters.</li>
+</ol>
+<p class="MsoNormal"><b>int FS::read(int fd, int count,
+int offset, char * buffer): </b>
+This function atomically reads <i>count</i> bytes from
+the file specified by <i>fd</i> into the
+buffer specified by <i>buffer</i>. The
+parameter <i>offset</i> specifies the starting
+location within the file where the data should be read. Upon success, the
+function returns the number of bytes read (this number can be less than <i>count</i>
+if no more bytes are available from the position specified by <i>offset</i>
+until the end of the file). The operation fails and returns -1 if:</p>
+<ol type="1">
+  <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l14 level1 lfo33; tab-stops: list .5in"><i>fd
+    </i>does not correspond to an open file.
+  <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l14 level1 lfo33; tab-stops: list .5in"><i>offset
+    </i>specifies a location that is beyond the end of the file.</li>
+</ol>
+<p class="MsoNormal"><b>int FS::write(int fd, int count,
+int offset, char * buffer): </b>
+This function atomically writes <i>count</i> bytes from
+the buffer specified by <i>buffer</i> into the
+file specified by<i> fd</i>. The parameter <i>offset</i>
+specifies the starting location within the file where the data should be
+written. Attempting to write beyond the end of file should extend the size of
+the file to accommodate the new data, but the write operation should not result
+in a hole between the old end of file and the beginning of the newly written
+data. Upon success, the function returns the number of bytes written. The
+operation fails and returns -1 if:</p>
+<ol type="1">
+  <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l0 level1 lfo36; tab-stops: list .5in"><i>fd</i>
+    does not correspond to an open file.
+  <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l0 level1 lfo36; tab-stops: list .5in"><i>offset
+    </i>specifies a location that would result in a hole in the file.
+  <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l0 level1 lfo36; tab-stops: list .5in">The
+    file should be extended, but there are no resources left to perform the
+    extension (for example, there is no sufficient disk space).</li>
+</ol>
+<p class="MsoNormal"><b>int FS::readDir(char * dirname,
+int bytes, char * names): </b>
+This function atomically reads the entries that exist in the directory specified by <i>dirname</i>.
+and copies the result (as an array of null-terminated strings) into *names. The
+function returns the number of entries read.The function fails if:</p>
+<ol type="1">
+  <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l10 level1 lfo39; tab-stops: list .5in"><i>dirname
+    </i>does not correspond to a valid directory.
+  <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l10 level1 lfo39; tab-stops: list .5in">The
+    names array is too small to hold the complete result.</li>
+</ol>
+<p class="MsoNormal"><b>int FS::size(int fd): </b>
+This function returns the number of bytes contained in the open file identified
+by <i>fd</i>. The function fails if <i>fd</i>
+does not correspond to a valid file.</p>
+<p><b>int FS::sizeDir(char *dirname): </b>This function returns the number of entries in the specified directory. The
+function fails if the name does not correspond to a valid directory.</p>
+</blockquote>
+
+  <P>We will provide the code <A HREF="FS.h">FS.h</A>.</P>
+
+<table BORDER=0 CELLSPACING=2 CELLPADDING=3 WIDTH="100%" hspace="4" >
+<tr BGCOLOR="#E0E0E8">
+<td WIDTH="100%"><b><nobr><font face="tahoma,arial,helvetica">What to Turn
+In</font></nobr></b></td>
+</tr>
+</table>
+
+<p>All of your implementations must adhere to (e.g., must not change) the public
+interfaces specified above. You may not modify the Disk interface in any way.
+You may add additional public methods to ADisk, PTree, or FlatFS, but
+we don't think you will need to do so. Although the &quot;internal interfaces&quot; of
+  parts 1-3 would not be accessible to a &quot;normal user&quot; of the file
+  system you create in part 4, we will test those internal interfaces during
+  grading.
+
+<p>Electronically turn in (1) your well commented and elegant source code and
+  (2) a file called README. Turn in the entire
+body of source code needed for this project (e.g., turn in your ADisk again).
+<p>Your README  file should include 5 sections:
+<ul>
+<li>
+Section 1: Administrative: your name (and your partner's), the number of slip days that you have used
+on this project and so far </li>
+
+<li>
+Section 2: A list of all source files in the directory with a 1-2 line
+description of each</li>
+
+<li>
+Section 3: 4 short paragraphs, each describing the high-level design of part 1,
+2, 3, or 4.&nbsp;</li>
+
+<li>
+Section 4: A 1/2 page high-level description of&nbsp; how you ensure that all
+actions by the PTree, FlatFS, and FS are made atomic. E.g., explain how you
+structured your code so that even if the system crashes in the middle of any
+operation, after recovery, all on-disk data structures are either in the state
+it was before the operation or after the complete operation, but not in a
+middle-stage</li>
+
+<li>
+Section 5: A discussion of your testing strategy. Outline the programs you used (at a
+high level), what each one tests, and the results of those tests. (More detailed low-level comments should be in
+the programs, themselves.)</li>
+
+</ul>
+
+<table BORDER=0 CELLSPACING=2 CELLPADDING=3 WIDTH="100%" hspace="4" >
+<tr BGCOLOR="#E0E0E8">
+<td WIDTH="100%"><b><nobr><font face="tahoma,arial,helvetica">Logistics</font></nobr></b></td>
+</tr>
+</table>
+The following guidelines should help
+smooth the process of delivering your project. You can help us a great
+deal by observing the following:
+<ul>
+<li>
+<b>Note that the project is due earlier during the day than the previous
+projects</b>.</li>
+
+<li>
+<font color="#003300">After you finish your work, please
+use the </font><font color="#FF0000">turnin
+</font><font color="#000000">utility
+to submit your work.</font></li>
+
+<center><table WIDTH="60%" >
+<tr>
+<td>Usage:</td>
+
+<td>turnin --submit zjiandan cs372-proj3 <font color="#FF0000">your_files</font></td>
+</tr>
+</table></center>
+
+<li>
+You may work in two-person teams on this project (or individually if
+you prefer.)  If you work in a two-person team, <B>turn in only one
+set of files per team.</B>
+</li>
+
+<li>
+Do not include object files in your submission!! (Or core
+dumps!!!) (e.g., run "make clean" before turnin.)</li>
+
+<li>
+You <font color="#FF0000">must</font> use a Makefile to compile
+the program and produce an executable.</li>
+
+<li>
+The project will be graded on the public <B>Linux</B>&nbsp;
+cluster (run 'cshosts publinux' to get a list) Portability should not be a major issue if you develop on a different
+platform. But, if you chose to develop on a different platform,
+porting and testing on Linux by the deadline is your responsibility. The
+statement &quot;it worked on my other machine&quot; will not be considered in
+the grading process in any way.</li>
+
+
+<li>
+Code will be evaluated based on its correctness, clarity,
+and elegance. Strive for simplicity. Think before you code.</li>
+
+</ul>
+
+<table BORDER=0 CELLSPACING=2 CELLPADDING=3 WIDTH="100%" hspace="4" >
+<tr BGCOLOR="#E0E0E8">
+<td WIDTH="100%"><b><nobr><font face="tahoma,arial,helvetica">Grading</font></nobr></b></td>
+</tr>
+</table>
+
+<p><font color="#330000">90% Code</font>
+<blockquote>Remember that your code must be clear and easy for a human to read.
+  Also remember that the tests we provide are for your convenience as a starting
+  point. You should test more thoroughly. Just passing those tests is not a
+  guarantee that you will get a good grade.<font color="#330000"><br>
+  </font>40% part 2<br>
+  20% part 3<br>
+  25% part 4</blockquote>
+
+<p>Note: I have deliberately under-weighted part 4 relative to its
+conceptual difficulty and amount of code you need to write and
+test. As a result, if you run short on time, it is still possible to
+get a solid grade on this project by doing a great job on parts 2-3
+and not completing part 4.</p>
+
+<font color="#330000">15% Documentation, testing, and analysis</font>
+<blockquote><font color="#330000">Discussions of design and testing strategy and
+  results.</font></blockquote>
+
+<center>
+<p><br><b><blink><font color="#FF0000"><font size=+1>Start early, we mean
+it!!!</font></font></blink></b></center>
+
+</body>
+</html>

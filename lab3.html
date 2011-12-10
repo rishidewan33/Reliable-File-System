@@ -1,0 +1,464 @@
+<!doctype html public "-//w3c//dtd html 4.0 transitional//en">
+<html>
+<head>
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+   <meta name="GENERATOR" content="Microsoft FrontPage 4.0">
+   <title>CS 372 Spring 2006: Project 3</title>
+</head>
+<body bgcolor="#FFFFFF">
+
+<center>
+<h2>
+CS372 Project 3 - An Atomic Disk</h2>
+<p>
+<b>Due: </b>11:59:59 PM April 10, 2006</p>
+</center>
+
+<h3>
+Assignment Goals</h3>
+
+<ul>
+<li>
+To learn about a key file system concept: logging</li>
+
+<li>
+To provide the basis for project 4, where you will build a reliable file system.</li>
+
+</ul>
+
+<h3>
+Overview of Project</h3>
+
+<blockquote>In projects 3 and 4, you will construct a user-level library that presents the
+  abstraction of a reliable file system called RFS. In order to manage the complexity, you
+  will implement this system in 4 phases, each of which presents a successively
+  higher-level abstraction. You will be given the abstraction of a raw disk
+  interface. On top of this you will build
+  <ol>
+    <li>An atomic disk</li>
+    <li>A reliable dynamically-growing multi-level tree</li>
+    <li>A reliable flat file system</li>
+    <li>A reliable directory-based file system (RFS)</li>
+  </ol>
+  <p>This project, project 3, deals only with step 1 above. It is very important
+  to do an excellent job on this part of the project, or you will have
+  significant problems in the next part.</p>
+</blockquote>
+
+<h3>
+The Assignment</h3>
+
+<blockquote>Before you begin the assignment, grab the following
+code: <a href="cs372-proj3-4-2006.tar.gz">cs372-proj3-4-2006.tar.gz</a>
+<p>This tar archive contains the source code to the raw disk interface as well
+as the .h files defining the other interfaces listed below. To extract the files from the archive, use the following command.
+<blockquote><tt>tar -xvzf cs372-proj3-4-2006.tar.gz</tt></blockquote>
+  A directory called <b><tt>cs372-proj3-4-2006/</tt></b> will be created,
+and your files will be extracted into it.
+ 
+</blockquote>
+
+<table BORDER=0 CELLSPACING=2 CELLPADDING=3 WIDTH="100%" hspace="4" >
+<tr BGCOLOR="#E0E0E8">
+<td WIDTH="100%"><b><nobr><font face="tahoma,arial,helvetica">Part 0: Understand
+  the supplied low-level file system</font></nobr></b></td>
+</tr>
+</table>
+
+<blockquote>
+  <p class="MsoNormal">RFS will be implemented using an 8-Mbyte disk with a
+  &quot;device driver&quot; that treats the storage space as a contiguous array
+  of raw disk sectors, each of size DISK_SECTOR_SIZE bytes. This driver is similar to popular
+  SCSI disk drivers. The disk sectors are numbered from 0 to
+  DISK_<i>NUM_OF_SECTORS</i>- 1 inclusive. (All constants are defined
+  in file <a href="common.h">common.h</a>  
+  that will be made available to you). No partial read or write to a disk sector is
+  possible. This important restriction has several implications on the design of
+  the file system. For example, updating a single byte in a disk sector requires
+  that the sector be read in memory, modified, and then written back to disk.
+  Similarly, reading a single byte in a disk sector requires that the sector be
+  read entirely from disk though only one byte is to be read.</p>
+
+  <p>As the file <A HREF="Disk.h">Disk.h</A> and <A
+  HREF="Disk.cc">Disk.cc</A> indicate, for the purpose of this
+  project, the device driver supports two main calls to  
+  operate on the disk. Both return either a success or a failure code depending
+  on the result:</p>
+  <ul type="disc">
+    <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l1 level1 lfo3; tab-stops: list .5in"><b>OpResult
+      Disk::ReadSector(int sectorNum, char * dataPtr):<span style="COLOR: green"> </span></b>This
+      function reads the disk sector numbered <i>sectorNum</i> and places them
+      in the buffer starting at address <i>dataPtr<b>.</b></i></li>
+    <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l1 level1 lfo3; tab-stops: list .5in"><b>OpResult
+      Disk::WriteSector(int sectorNum, char * dataPtr): </b>This function writes
+      the disk sector numbered <i>sectorNum</i>. The data to be written to disk
+      are available in a buffer starting at address <i>dataPtr<b>.</b></i></li>
+  </ul>
+
+  <p class="MsoNormal">OpResult is a type defined in <a href="common.h">common.h</a>.
+  A ReadSector or WriteSector operation fails and returns an error code if:</p>
+  <ol type="1">
+    <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l5 level1 lfo6; tab-stops: list .5in"><i>sectorNum</i>
+      does not refer to a valid disk sector
+  </ol>
+
+  For convience in testing, the Disk also has an interface that causes the system to occasionally fail at random times. (Of course, a real disk driver probably would not include this interface.) Notice that writes to sectors are atomic -- either the sector is completely written with the data you specify or the write has no effect.
+
+
+  <ul type="disc">
+    <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l1 level1 lfo3; tab-stops: list .5in"><b>void
+      Disk::SetCrashProb(float prob):<span style="COLOR: green"> </span></b> After this function completes, the probability that the system crashes before each sector is read/written is <i>prob</i></li>
+  </ul>
+
+  <p class="MsoNormal">An implementations of <a href="Disk.cc">Disk</a> will be
+  made available to you.</p>
+</blockquote>
+
+<table BORDER=0 CELLSPACING=2 CELLPADDING=3 WIDTH="100%" hspace="4" >
+<tr BGCOLOR="#E0E0E8">
+<td WIDTH="100%"><b><nobr><font face="tahoma,arial,helvetica">Part 1: Build an
+  atomic disk</font></nobr></b></td>
+</tr>
+</table>
+
+<blockquote>Your first task is to design, implement, and thouroughly test an <i>atomic disk.</i>
+  The atomic disk allows a series of writes to different sectors to be made and
+  then atomically applied -- either all the writes occur or none of them do. The
+  atomic disk presents a similar interface to the disk, except (a) each read and
+  write includes a transaction ID and (b) there are additional calls to begin,
+  commit, abort, and apply transactions. You will implement this atomicity by
+  providing an undo log on disk This undo log will consume ADISK_UNDO_LOG_SECTORS
+  sectors of your disk, so users of the ADisk will see a DISK_NUM_OF_SECTORS -
+  ADISK_UNDO_LOG_SECTORS disk.&nbsp;
+  <p>In particular, an <A HREF="ADisk.h">ADisk</A> implements the
+  following interface:</p>
+  <b>ADisk::ADisk(Disk
+  d)</b>: This function is the constructor. It should initialize your
+  internal state, read the log, and
+  undo any transactions that were in-progress (uncommitted and
+  unaborted) when the crash occurred, and finally reset the log.
+  <p><b>int
+  ADisk::getNSectors()</b>: This function returns the total number of data sectors on
+  the atomic disk that can be used, not including the space on the disk used for the log. <b>Note</b>:
+  this number will be smaller than <i>DISK_NUM_OF_SECTORS</i>.
+  <p><b>TransID
+  ADisk::beginTransaction()</b>: This function performs any necessary processing
+  to begin a new transaction and returns a transaction ID that can identify the
+  newly created transaction.
+  <p><b>OpResult
+  ADisk::commitTransaction(TransID xid)</b>: This function marks the log to
+  indicate that the specified transaction has committed, which means that after
+  a crash, all writes for the specified transaction must survive.
+  <p><b>OpResult
+  ADisk::abortTransaction(TransID xid)</b>: This function rolls back
+  the state of the data store to undo the effect of all writes issued
+  in this transaction. Once this is done, it marks the transaction in
+  the log as aborted.
+  <p><b>OpResult
+  ADisk::readSector(TransID xid, int sectorNum, char * dataPtr):<span style="COLOR: green"> </span></b>This
+  function reads the disk sector numbered <i>sectorNum</i> and places it in
+  the buffer starting at address <i>dataPtr<b>. Note: </b></i> the result of a
+  read of a sector must reflect all previous committed writes as well as any
+  uncommitted writes that are part of the same transaction. The read should not
+  reflect writes from other active transactions or writes from aborted
+  transactions.
+  <p><b>OpResult
+  ADisk::writeSector(TransID xid, int sectorNum, char * dataPtr):
+  </b>This function copies the current contents of the disk sector
+  <I>sectorNum</I> to the undo log and then overwrites that sector
+  with new data. The data to be written to disk are
+  available in a buffer starting at address <i>dataPtr<b>.</b></i>
+
+  <p class="MsoNormal">OpResult is a type defined in <a href="common.h">common.h</a>.
+  A commitTransaction, abortTransaction, readSector, or writeSector operation
+  fails and returns an error code if:</p>
+  <ol>
+    <li>
+      <p class="MsoNormal"><i>xid</i> does not refer to an active
+      transaction&nbsp;</li>
+  </ol>
+  <p class="MsoNormal">In addition, a readSector or writeSector operation fails
+  and returns an error code if:</p>
+  <ol start="2">
+    <li class="MsoNormal" style="mso-margin-top-alt: auto; mso-margin-bottom-alt: auto; mso-list: l5 level1 lfo6; tab-stops: list .5in"><i>sectorNum</i>
+      does not refer to a valid disk sector
+  </ol>
+  <p>Finally, a writeSector operation fails and returns an error if:</p>
+  <ol start="3">
+    <li class="MsoNormal" style="mso-margin-top-alt: auto;
+  mso-margin-bottom-alt: auto; mso-list: l5 level1 lfo6; tab-stops:
+  list .5in">More than <I>MAX_WRITES_PER_TRANSACTION</I> have been
+  issued for this transaction.</li>
+  </ol>
+
+  <p><b>Concurrency</b></p>
+  <p>Note that your implementation must use locks and
+      condition variables to enforce concurrency control. </p>
+
+  <p>Your implementation must allow up to
+  <I>MAX_CONCURRENT_WRITES_PER_TRANSACTION</I> concurrent transactions. A
+  call to <I>beginTransaction</I> should block until there are fewer
+  than <I>MAX_CONCURRENT_WRITERS_PER_TRANSACTION</I> in-progress
+  transactions.</LI>
+
+  <p>Multiple threads may concurrently attempt to
+  read/write/commit/abort the same transaction. Your code must
+  synchronize such concurrent access.</p>
+
+  <p>You are <b>not</b> required to enforce readers/writers or mutex
+  locking of disk sectors across transactions. For example, the
+  following series of events is legal: 
+  transaction 1 could write sector 42, transaction 2 could read the
+  old data from sector 42, then transaction 1 could commit, then
+  transaction 2 could commit.  (If an application wants stronger
+  consistency guarantees in the face of concurrent reads/writes of
+  disk sectors, the application would provide readers/writers locking
+  in a layer above ADisk. Within ADisk, you are just concerned with
+  protecting ADisk's internal data structures and log.)</p>
+
+
+  <p><b>Garbage collection</b></p>
+
+  <p>Eventually, your log will be full of writes, some of which are
+  part of committed transactions, some of which are part of aborted
+  transactions, and some of which are part of in-progress
+  transactions. You need to compact the log so that all of the
+  in-progress records are located at the front of the log and the rest
+  of the log is free. e.g., you will need to do something like the
+  following</p>
+
+<pre>
+         int newIndex = 0;
+         for(ii = 0; ii < ADISK_UNDO_LOG_RECORDS; ii++)
+             currentRec = read record ii
+             if currentRec is part of in-progress transaction
+                 write currentRec to record newIndex
+                 newIndex++
+         for(ii = newIndex; ii < ADISK_UNDO_LOG_RECORDS; ii++)
+	     clear record ii    
+</pre>
+
+  <p>Notice that if <I>(MAX_WRITES_PER_TRANSACTION + 1) *
+  MAX_CONCURRENT_TRANSACTIONS * SECTORS_PER_UNDO_RECORD &lt
+  ADISK_UNDO_LOG_SECTORS</I>, then garbage collection allows us to
+  avoid deadlocks and allows all transactions to complete.</p>
+
+
+  <p>To support this garbage collection, your ADisk should implement
+  one additional public interfaces:</p>
+
+  <p><b>void
+  ADisk::compactLogWhenNeeded():
+  </b>This function blocks until the log is full. It then compacts the
+  log. Finally, it broadcasts on a condition variable to unblock any
+  waiting begin, commit, abort, or write calls.</p>
+
+  <p>Note that after you call the ADisk constructor, the application
+  making use of ADisk will need to
+  fork a garbage collector thread that simply does the following</p>
+
+<pre>
+         while(true)
+             adisk->compactLogWhenNeeded()
+</pre>
+
+  <p>We've structured ADisk to require this external thread to simplify
+  thinking about locking. In reality, you would want to hide this
+  detail from the interface to ADisk.</p>
+  
+
+
+  <p><b>Question:</b> If the log is scanned and records are copied to
+  earlier points in the log as described above, what happens if there
+  is a crash during the compaction process? Can a record be lost?
+  Suppose that an undo log contains multiple in-progress records for
+  the same sector, can the "winning" undo entry change due to a crash
+  in garbage collection?</p>
+
+
+  <p><b>Other hints:</b></p>
+  <ul>
+    <li>It is extremely important that you get each part of the project
+      completely working before you move on to the next part. Bugs here could
+      manifest in very strange behavior that will be difficult to diagnose in
+      higher levels of the code. A general principle in engineering complex
+      systems is &quot;go from working system to working system.&quot; That is,
+      build core functionality, debug it, then add a small subset of
+      functionality and test that. It is much easier to find a bug by testing a
+      100-line module 20 minutes after you write it than to find the same bug by
+      testing the entire 2000 line system after a week of writing code. <b><i>If
+      you try to write all your code first and test it later, you are very
+      likely to fail this project.</i></b> If you thoroughly test each module
+      and each interface as you write it, each module may seem to take 10%
+      longer, but the overall project will take much less time. It is also much
+      more likely to work. Thorough testing of each phase of the project is a
+      requirement of this project.</li>
+    <li>Begin this part of the project by writing down your main data
+      structures, and then writing pseudo-code for each of the above functions
+      in terms of methods on these data structures.</li>
+
+    <li>Note that some of the updates you write to the log may exceed
+    1 sector. In fact, the pseudo-code for garbage collection above
+    implicitly assumed that a "log record" was two sectors long -- one
+    sector to hold the update to the sector and another to hold the
+    rest of the information about the transaction. This simple
+    approach is adequate for this project.  But as you implement it
+    (or any other approach), remember that you are only guaranteed
+    that single-sector writes are atomic. Therefore, you must devise a
+    way to ensure that incomplete multi-sector writes don't harm your
+    system (e.g., by structuring them so that incomplete multi-sector
+    writes can be detected and ignored.)</li>
+
+  </ul>
+  </blockquote>
+
+<table BORDER=0 CELLSPACING=2 CELLPADDING=3 WIDTH="100%" hspace="4" >
+<tr BGCOLOR="#E0E0E8">
+<td WIDTH="100%"><b><nobr><font face="tahoma,arial,helvetica">Unit tests</font></nobr></b></td>
+</tr>
+</table>
+
+<p>As your career progresses, you will find that writing simple
+sanity-check tests for each object you write will save you enormous
+amounts of time and make you a much more productive programmer. So, we
+should not have to require you to write any specific tests because you
+should already be planning to do so. But, thorough testing of this
+part of the project is so important to the rest of the project, that
+we're going to require it.</p>
+
+<p>Write a program called aDiskUnit that executes a series of unit
+tests for ADisk. Designing such tests is a skill that deserves
+practice, so we do not provide a full list of what you should
+test. You might start with simple reads and writes within a
+transaction. Then look at reads and writes across transactions that
+commit or abort. You shoud have some tests with a single thread and some with more.  
+Should probably have some tests for the simple case when the
+disk doesn't crash and some for the case where it does. Etc.</p>
+
+<p>The TA will also have a set of unit tests (other than yours) to use
+for grading your code. So, passing your tests is not necessarily
+enough. But, if you design good tests, then passing your tests makes
+it much more likely that you will pass the TA's tests.</p>
+
+<p>Additional comments</p>
+<UL>
+<LI>Your tests must be self-checking. That is, after each test, you
+should output a simple statement like "Test Succeeds" or "Test Fails."
+(e.g., you should not require a human to read through 100 lines of output to
+see if the read on line 92 matches the write on line 7; instead, your
+unit test program should remember the earlier write it did and compare
+the read result to it.)
+</UL>
+
+<table BORDER=0 CELLSPACING=2 CELLPADDING=3 WIDTH="100%" hspace="4" >
+<tr BGCOLOR="#E0E0E8">
+<td WIDTH="100%"><b><nobr><font face="tahoma,arial,helvetica">What to Turn
+In</font></nobr></b></td>
+</tr>
+</table>
+
+<p>All of your implementations must adhere to (e.g., must not change) the public
+interfaces specified above. You may not modify the Disk interface in any way.
+You may add additional public methods to ADisk; we don't think you will need to
+do so (except perhaps to add testing interfaces). Electronically turn in (1) your well commented and elegant source code and
+  (2) a file called README.</p>
+
+<p>Your README file should include 4 sections:
+<ul>
+<li>
+Section 1: Administrative: your name (both names if you choose to work
+in a 2-person team), the number of slip days that you have used
+on this project and so far. Note that if you choose to work in a
+two-person team, the number of slip days available to the team is the
+<B>minimum</B> of the number of slip days available to each member of
+the team.</li>
+
+<li>
+Section 2: A list of all source files in the directory with a 1-2 line
+description of each</li>
+
+<li>
+Section 3: 1 short paragraph,&nbsp; describing the high-level design of part 1&nbsp;</li>
+
+<li>
+Section 4: A discussion of your testing strategy. Outline the programs
+you used (at a high level), what each one tests, and the results of
+those tests. (More detailed low-level comments should be in the
+programs, themselves.)</li>
+
+</ul>
+
+<table BORDER=0 CELLSPACING=2 CELLPADDING=3 WIDTH="100%" hspace="4" >
+<tr BGCOLOR="#E0E0E8">
+<td WIDTH="100%"><b><nobr><font face="tahoma,arial,helvetica">Logistics</font></nobr></b></td>
+</tr>
+</table>
+The following guidelines should help
+smooth the process of delivering your project. You can help us a great
+deal by observing the following:
+<ul>
+
+<li>
+After you finish your work, please
+use the
+<font color="#003300"> </font><font color="#FF0000">turnin
+</font><font color="#000000">utility
+to submit your work.</font></li>
+
+<center><table WIDTH="60%" >
+<tr>
+<td>Usage:</td>
+
+<td>turnin --submit zjiandan cs372-proj3 <font color="#FF0000">your_files</font></td>
+</tr>
+</table></center>
+
+<li>
+You <font color="#FF0000">must</font> include a Makefile to compile
+the program and produce an executable.</li>
+
+<li>Do not include object files in your submission!! (Or core
+dumps!!!) (e.g., run "make clean" before turnin.)</li>
+
+
+
+<li>
+The project will be graded on the public <B>Linux</B>&nbsp;
+cluster (run 'cshosts publinux' to get a list) Portability should not be a major issue if you develop on a different
+platform. But, if you chose to develop on a different platform,
+porting and testing on Linux by the deadline is your responsibility. The
+statement &quot;it worked on my other machine&quot; will not be considered in
+the grading process in any way.</li>
+
+<li>
+You are required to adhere to the multi-threaded coding standards/rules
+discussed in class and described in the hand out.</li>
+
+<li>
+Code will be evaluated based on its correctness, clarity,
+and elegance. Strive for simplicity. Think before you code.</li>
+
+</ul>
+
+<table BORDER=0 CELLSPACING=2 CELLPADDING=3 WIDTH="100%" hspace="4" >
+<tr BGCOLOR="#E0E0E8">
+<td WIDTH="100%"><b><nobr><font face="tahoma,arial,helvetica">Grading</font></nobr></b></td>
+</tr>
+</table>
+
+<p><font color="#330000">80% Code</font>
+<blockquote>Remember that your code must be clear and easy for a human to read.
+  Also remember that the tests we provide are for your convenience as a starting
+  point. You should test more thoroughly. Just passing those tests is not a
+  guarantee that you will get a good grade.</blockquote>
+
+<font color="#330000">20% Documentation, testing, and analysis</font>
+<blockquote>Discussions of design and testing
+  strategy.</blockquote>
+
+<center>
+<p><br><b><blink><font color="#FF0000"><font size=+1>Start early, we mean
+it!!!</font></font></blink></b></center>
+
+</body>
+</html>
