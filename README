@@ -1,0 +1,13 @@
+This project is a construct of a user-level library that presents the abstraction of a file system called RFS. In order to manage the complexity, RFS is implemented in 4 phases, each of which represents a successively higher-level abstraction. This project starts with a simple raw disk interface that performs simple reads/writes on a disk. The disk is a file named "FakeDisk".
+
+-------- ATOMIC DISK --------
+
+This phase implements the concept of transactions, in which multiple writes to disk are being done atomically. This is accomplished by creating in-memory transactions which can be committed, written to a log to ensure atomicity (in the event of a disk crash), and written to disk.
+
+The threading model for the Atomic Disk consists of the following:
+
+ADisk only allows MAX_CONCURRENT_TRANSACTIONS active transaction to occur at the same time. Any thread that wishes to create any transactions afterwards will have to wait until the subsequent transactions have been committed/aborted.
+
+Writeback worker thread: Indefinitely fetches committed transactions from the Writeback Queue and writes the transaction data to disk. Wait when the Writeback Queue is empty.
+
+Log cleaning worker thread: Clears sectors in the log which belonged to transactions now successfully written to disk. It waits when the tail of the log refers to a transaction who's writeback is complete.
