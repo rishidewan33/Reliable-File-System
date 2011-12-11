@@ -25,6 +25,7 @@ class PTree
     int getParam(TParams param);
 
   private:
+      ADisk adisk;
   /*
    * You will need to add more member variables here.
    */

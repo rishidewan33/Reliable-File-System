@@ -1,5 +1,5 @@
-#ifndef __FS_H__
-#define __FS_H__
+#ifndef __RFS_H__
+#define __RFS_H__
 
 
 #include "FlatFS.h"

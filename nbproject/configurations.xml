@@ -4,17 +4,21 @@
     <df name="labF" root=".">
       <in>ADisk.cc</in>
       <in>ADisk.h</in>
+      <in>ADiskUnit.cc</in>
+      <in>ADiskUnit.h</in>
       <in>Disk.cc</in>
       <in>Disk.h</in>
-      <in>FS.h</in>
       <in>FlatFS.h</in>
+      <in>PTree.cc</in>
       <in>PTree.h</in>
+      <in>RFS.h</in>
       <in>common.h</in>
       <in>dirent.h</in>
       <in>sthread.cc</in>
       <in>sthread.h</in>
       <in>testpart0.cc</in>
       <in>testpart1.cc</in>
+      <in>testpart1a.cc</in>
     </df>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"
@@ -47,11 +51,11 @@
           </ccTool>
         </makeTool>
       </makefileType>
-      <item path="FS.h" ex="true" tool="3" flavor="0">
-      </item>
       <item path="FlatFS.h" ex="true" tool="3" flavor="0">
       </item>
       <item path="PTree.h" ex="true" tool="3" flavor="0">
+      </item>
+      <item path="RFS.h" ex="true" tool="3" flavor="0">
       </item>
       <item path="dirent.h" ex="true" tool="3" flavor="0">
       </item>

@@ -26,7 +26,7 @@ PARTSRCS_4 = $(PARTSRCS_3) FS.cc
 PARTOBJS_4 := $(PARTSRCS_4:.cc=.o)
 
 
-OTHERSRCS = testpart0.cc testpart1.cc testpart2.cc testpart3.cc testpart4.cc
+OTHERSRCS = testpart0.cc testpart1.cc testpart1a.cc testpart2.cc testpart3.cc testpart4.cc
 
 SRCS = $(COMMONSRCS) $(OTHERSRCS)
 
@@ -35,7 +35,7 @@ LIBS = -lpthread
 CFLAGS = -g -Wall -D_POSIX_THREAD_SEMANTICS 
 
 #all: testpart0 testpart1 testpart2 testpart3 testpart4
-all: testpart0 testpart1
+all: testpart0 testpart1 testpart1a
 
 %.o: %.cc 
 	$(C++) $(CFLAGS) $< -c -o $@

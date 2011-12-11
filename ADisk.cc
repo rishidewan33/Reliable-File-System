@@ -1,14 +1,11 @@
 #include "ADisk.h"
-#include <iostream>
 #include <algorithm>
 #include <cstring>
-#include <cassert>
 #include <pthread.h>
 
 static char all_zeros[SECTOR_SIZE] = {0};
 
 TransID Transaction::TransIDCounter = 0;
-int ADisk::writebackTicketCounter = 0;
 
 ADisk::ADisk(Disk disk, bool format)
 {
@@ -19,10 +16,10 @@ ADisk::ADisk(Disk disk, bool format)
     scond_init(&ok_to_writeback_to_disk);
     scond_init(&ok_to_clear_log);
     if (format)
-    { //Fill the entire disk with null bytes.
+    { //Fill the entire disk with zero.
         for (int i = 0; i < NUM_OF_SECTORS; ++i)
             maindisk.writeDisk(i, all_zeros);
-        num_sectors = NUM_OF_SECTORS - ADISK_REDO_LOG_SECTORS - 1;
+        num_sectors = NUM_OF_SECTORS - ADISK_SECTOR_OFFSET;
         checkpoint = 0;
     }
     else
@@ -112,12 +109,12 @@ ADisk::ADisk(Disk disk, bool format)
 
 ADisk::~ADisk()
 {
-    for (std::map<TransID, Transaction*>::iterator it = atl.begin(); it != atl.end(); ++it)
+    for (std::map<TransID, Transaction*>::iterator it = active_transaction_list.begin(); it != active_transaction_list.end(); ++it)
         delete it->second;
-    for (std::deque<Transaction*>::iterator it = wbl.begin(); it != wbl.end(); ++it)
+    for (std::deque<Transaction*>::iterator it = writeback_queue.begin(); it != writeback_queue.end(); ++it)
         delete (*it);
-    atl.clear();
-    wbl.clear();
+    active_transaction_list.clear();
+    writeback_queue.clear();
     //smutex_destroy(&adisk_lock);
     //scond_destroy(&ok_to_create_transaction);
     //scond_destroy(&ok_to_log);
@@ -128,10 +125,10 @@ OpResult ADisk::abortTransaction(TransID xid)
 {
     smutex_lock(&adisk_lock);
     OpResult result;
-    if (atl.find(xid) != atl.end())
+    if (active_transaction_list.find(xid) != active_transaction_list.end())
     {
-        delete atl[xid];
-        atl.erase(xid);
+        delete active_transaction_list[xid];
+        active_transaction_list.erase(xid);
         result = SUCCESS;
     }
     else
@@ -143,12 +140,12 @@ OpResult ADisk::abortTransaction(TransID xid)
 TransID ADisk::beginTransaction()
 {
     smutex_lock(&adisk_lock);
-    while (atl.size() == (unsigned int) MAX_CONCURRENT_TRANSACTIONS)
+    while (active_transaction_list.size() == (unsigned int) MAX_CONCURRENT_TRANSACTIONS)
     {
         scond_wait(&ok_to_create_transaction, &adisk_lock);
     }
     Transaction* new_transaction = new Transaction();
-    atl.insert(std::pair<TransID, Transaction* > (new_transaction->getTransID(), new_transaction));
+    active_transaction_list.insert(std::pair<TransID, Transaction* > (new_transaction->getTransID(), new_transaction));
     smutex_unlock(&adisk_lock);
     return new_transaction->getTransID();
 }
@@ -167,14 +164,14 @@ void ADisk::readSectorLocationsFromSector(char* sector, std::vector<int>& locati
 OpResult ADisk::commitTransaction(TransID xid)
 {
     smutex_lock(&adisk_lock);
-    if (atl.find(xid) == atl.end())
+    if (active_transaction_list.find(xid) == active_transaction_list.end())
     {
         smutex_unlock(&adisk_lock);
         return FAILURE;
     }
     else
     {
-        Transaction* t = atl[xid];
+        Transaction* t = active_transaction_list[xid];
         while (log_sectors < t->getSectorsRequired()) //Wait for required number of log sectors
         {
             scond_wait(&ok_to_write_to_log, &adisk_lock);
@@ -188,8 +185,8 @@ OpResult ADisk::commitTransaction(TransID xid)
             smutex_unlock(&adisk_lock);
             return FAILURE;
         }
-        wbl.push_back(t);
-        atl.erase(xid);
+        writeback_queue.push_back(t);
+        active_transaction_list.erase(xid);
         scond_broadcast(&ok_to_create_transaction, &adisk_lock);
         scond_signal(&ok_to_writeback_to_disk, &adisk_lock);
     }
@@ -276,13 +273,13 @@ void ADisk::writebackTransactionsToDisk()
     smutex_lock(&adisk_lock);
 
     //Thread waits when the WriteBack list is empty.
-    while (wbl.empty())
+    while (writeback_queue.empty())
     {
         scond_wait(&ok_to_writeback_to_disk, &adisk_lock);
     }
 
     //Grab the next transaction off the list to be written.
-    Transaction* t = wbl.front();
+    Transaction* t = writeback_queue.front();
     //Write data from transaction onto disk.
     std::vector<int> traversal = t->getSectorNumbers();
     for (std::vector<int>::iterator it = traversal.begin(); it != traversal.end(); ++it)
@@ -366,7 +363,7 @@ void ADisk::compactLogWhenNeeded()
         start = (start + 1) % ADISK_REDO_LOG_SECTORS;
     }
     delete trans_clear;
-    wbl.erase(std::find(wbl.begin(),wbl.end(),trans_clear));
+    writeback_queue.erase(std::find(writeback_queue.begin(),writeback_queue.end(),trans_clear));
     completed_tickets.erase(log_tail);
     log_tail = end;
     char* checkpoint_sector = intToByteArray(log_tail);
@@ -417,9 +414,9 @@ OpResult ADisk::readSector(TransID& xid, int sectorNum, char* dataPtr)
         smutex_unlock(&adisk_lock);
         return FAILURE;
     }
-    if (atl.find(xid) != atl.end())
+    if (active_transaction_list.find(xid) != active_transaction_list.end())
     {
-        char* read_atl = atl[xid]->getDataAtSectorNum(sectorNum);
+        char* read_atl = active_transaction_list[xid]->getDataAtSectorNum(sectorNum);
         if (read_atl)
         {
             for (int i = 0; i < SECTOR_SIZE; ++i)
@@ -429,7 +426,7 @@ OpResult ADisk::readSector(TransID& xid, int sectorNum, char* dataPtr)
         }
     }
     char* read_wbl;
-    for (std::deque<Transaction*>::iterator it = wbl.begin(); it != wbl.end(); ++it)
+    for (std::deque<Transaction*>::iterator it = writeback_queue.begin(); it != writeback_queue.end(); ++it)
     {
         if ((read_wbl = (*it)->getDataAtSectorNum(sectorNum)))
         {
@@ -466,14 +463,14 @@ OpResult ADisk::writeSector(TransID& xid, int sectorNum, char* dataPtr)
         return FAILURE;
     }
     OpResult result = SUCCESS;
-    if (atl.find(xid) == atl.end())
+    if (active_transaction_list.find(xid) == active_transaction_list.end())
         result = FAILURE;
     else
     {
-        if (atl[xid]->getTotalWrites() == (unsigned int) MAX_WRITES_PER_TRANSACTION)
+        if (active_transaction_list[xid]->getTotalWrites() == (unsigned int) MAX_WRITES_PER_TRANSACTION)
             result = FAILURE;
         else
-            atl[xid]->addSector(sectorNum, dataPtr);
+            active_transaction_list[xid]->addSector(sectorNum, dataPtr);
     }
     smutex_unlock(&adisk_lock);
     return result;
@@ -482,7 +479,7 @@ OpResult ADisk::writeSector(TransID& xid, int sectorNum, char* dataPtr)
 std::vector<TransID> ADisk::getActiveTransactionIDs()
 {
     std::vector<TransID> active_ids;
-    for (std::map<TransID, Transaction*>::iterator it = atl.begin(); it != atl.end(); ++it)
+    for (std::map<TransID, Transaction*>::iterator it = active_transaction_list.begin(); it != active_transaction_list.end(); ++it)
         active_ids.push_back((*it).first);
     return active_ids;
 }
