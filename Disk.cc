@@ -25,7 +25,7 @@ Disk::Disk()
 }
 Disk::~Disk()
 {
-  fcloseall();
+    fclose(fdisk);
 }
 
 OpResult Disk::diskInit()

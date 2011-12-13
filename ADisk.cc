@@ -1,7 +1,6 @@
 #include "ADisk.h"
 #include <algorithm>
 #include <cstring>
-#include <pthread.h>
 
 static char all_zeros[SECTOR_SIZE] = {0};
 

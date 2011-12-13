@@ -73,7 +73,7 @@ int main(int argc, char** argv) {
                     std::cout << "Parameter error (Character).\n\n";
                     break;
                 }
-                char* write_buffer = new char[SECTOR_SIZE]();
+                char* write_buffer = new char[SECTOR_SIZE];
                 for (int i = 0; i < SECTOR_SIZE; i++)
                     write_buffer[i] = value;
                 if (adisk.writeSector(transid, sectornum, write_buffer) == FAILURE)

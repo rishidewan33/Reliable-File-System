@@ -13,6 +13,10 @@ PARTSRCS_1 = $(PARTSRCS_0) ADisk.cc
 
 PARTOBJS_1 := $(PARTSRCS_1:.cc=.o)
 
+PARTSRCS_1A = $(PARTSRCS_1) ADiskTests.cc
+
+PARTOBJS_1A := $(PARTSRCS_1A:.cc=.o)
+
 PARTSRCS_2 = $(PARTSRCS_1) PTree.cc
 
 PARTOBJS_2 := $(PARTSRCS_2:.cc=.o)
@@ -52,8 +56,8 @@ testpart0: $(PARTOBJS_0) testpart0.o
 testpart1: $(PARTOBJS_1) testpart1.o
 	$(CC) -o testpart1 testpart1.o $(PARTOBJS_1) $(LIBS)
 
-testpart1a: $(PARTOBJS_1) testpart1a.o
-	$(CC) -o testpart1a testpart1a.o $(PARTOBJS_1) $(LIBS)
+testpart1a: $(PARTOBJS_1A) testpart1a.o
+	$(CC) -o testpart1a testpart1a.o $(PARTOBJS_1A) $(LIBS)
 
 testpart2: $(PARTOBJS_2) testpart2.o
 	$(CC) -o testpart2 testpart2.o $(PARTOBJS_2) $(LIBS)

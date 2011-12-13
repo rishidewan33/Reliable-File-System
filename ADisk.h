@@ -7,6 +7,7 @@
 #include <map>
 #include <deque>
 #include <vector>
+#include <iostream>
 
 struct LogTicket
 {
@@ -24,7 +25,6 @@ struct LogTicket
 
 class Transaction
 {
-    friend class ADiskUnit;
 public:
 
     Transaction()
@@ -81,11 +81,11 @@ private:
     TransID id;
     std::map<int, char*> sectors;
     static unsigned long long TransIDCounter;
+    friend class ADiskUnit;
 };
 
 class ADisk
 {
-    friend class ADiskUnit;
 public:
     /*
      * You should not need to change the public interface
@@ -129,9 +129,6 @@ private:
     static TransID byteArrayToTransID(char* byteArray);
     static char* intToByteArray(const int& value);
     static int byteArrayToInt(char* value);
-    /*
-     * You will need to add more member variables here.
-     */
-
+    friend class ADiskUnit;
 };
 #endif

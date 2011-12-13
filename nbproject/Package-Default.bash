@@ -12,8 +12,8 @@ CND_DISTDIR=dist
 CND_BUILDDIR=build
 NBTMPDIR=${CND_BUILDDIR}/${CND_CONF}/${CND_PLATFORM}/tmp-packaging
 TMPDIRNAME=tmp-packaging
-OUTPUT_PATH=testpart1
-OUTPUT_BASENAME=testpart1
+OUTPUT_PATH=testpart1a
+OUTPUT_BASENAME=testpart1a
 PACKAGE_TOP_DIR=labF/
 
 # Functions

@@ -4,8 +4,8 @@
     <df name="labF" root=".">
       <in>ADisk.cc</in>
       <in>ADisk.h</in>
-      <in>ADiskUnit.cc</in>
-      <in>ADiskUnit.h</in>
+      <in>ADiskTests.cc</in>
+      <in>ADiskTests.h</in>
       <in>Disk.cc</in>
       <in>Disk.h</in>
       <in>FlatFS.h</in>
@@ -43,7 +43,7 @@
           <buildCommandWorkingDir>.</buildCommandWorkingDir>
           <buildCommand>${MAKE} -f Makefile</buildCommand>
           <cleanCommand>${MAKE} -f Makefile clean</cleanCommand>
-          <executablePath>testpart1</executablePath>
+          <executablePath>testpart1a</executablePath>
           <ccTool>
             <preprocessorList>
               <Elem>_POSIX_THREAD_SEMANTICS</Elem>
